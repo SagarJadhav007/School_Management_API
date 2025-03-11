@@ -10,15 +10,22 @@ const addSchool = async (req, res) => {
     const lng = parseFloat(longitude);
 
     // Create new school
-    const schoolId = await School.create(name, address, lat, lng);
+    const school = await School.create({
+      name,
+      address,
+      location: {
+        type: "Point",
+        coordinates: [lng, lat], // MongoDB uses [longitude, latitude] format
+      },
+    });
 
     return res.status(201).json({
       success: true,
       message: "School added successfully",
       data: {
-        id: schoolId,
-        name,
-        address,
+        id: school._id,
+        name: school.name,
+        address: school.address,
         latitude: lat,
         longitude: lng,
       },
@@ -41,23 +48,40 @@ const listSchools = async (req, res) => {
     const userLat = parseFloat(latitude);
     const userLng = parseFloat(longitude);
 
-    // Get all schools sorted by proximity
-    const schools = await School.findAllSortedByProximity(userLat, userLng);
+    // Find all schools
+    const schools = await School.find();
 
-    // Format the response with distance
-    const formattedSchools = schools.map((school) => ({
-      id: school.id,
-      name: school.name,
-      address: school.address,
-      latitude: school.latitude,
-      longitude: school.longitude,
-      distance: parseFloat(school.distance.toFixed(2)), // Round to 2 decimal places
-    }));
+    // Calculate distance for each school and sort
+    const schoolsWithDistance = schools.map((school) => {
+      // Extract latitude and longitude from the location field
+      const [schoolLng, schoolLat] = school.location.coordinates;
+
+      // Calculate distance using the Haversine formula
+      const distance = School.calculateDistance(
+        userLat,
+        userLng,
+        schoolLat,
+        schoolLng
+      );
+
+      // Return a formatted object with distance
+      return {
+        id: school._id,
+        name: school.name,
+        address: school.address,
+        latitude: schoolLat,
+        longitude: schoolLng,
+        distance: parseFloat(distance.toFixed(2)), // Round to 2 decimal places
+      };
+    });
+
+    // Sort by distance (nearest first)
+    schoolsWithDistance.sort((a, b) => a.distance - b.distance);
 
     return res.status(200).json({
       success: true,
-      count: formattedSchools.length,
-      data: formattedSchools,
+      count: schoolsWithDistance.length,
+      data: schoolsWithDistance,
     });
   } catch (error) {
     console.error("Error in listSchools controller:", error);

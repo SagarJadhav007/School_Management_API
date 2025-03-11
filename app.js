@@ -1,7 +1,7 @@
 // app.js
 const express = require("express");
 const cors = require("cors");
-const { initDatabase } = require("./config/database");
+const connectDB = require("./config/database");
 const schoolRoutes = require("./routes/schoolRoutes");
 
 // Initialize express app
@@ -11,11 +11,6 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-// Initialize database
-initDatabase()
-  .then(() => console.log("Database initialized"))
-  .catch((err) => console.error("Database initialization failed:", err));
 
 // Root route
 app.get("/", (req, res) => {
